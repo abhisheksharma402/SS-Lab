@@ -1,26 +1,22 @@
 #include<bits/stdc++.h>
 #include <fstream>
 #include <unistd.h>
+#include <fcntl.h>
 
 int main() {
     // Create five new files
-    for (int i = 1; i <= 5; ++i) {
-        std::string filename = "file_" + std::to_string(i) + ".txt";
-        std::ofstream file(filename);
-    }
+    int fd1 = open("file1.txt",O_RDWR|O_CREAT|O_EXCL, 0744);
+    std::cout<<fd1<<'\n';
+    int fd2 = open("file2.txt",O_RDWR|O_CREAT|O_EXCL, 0744);
+    std::cout<<fd2<<'\n';
+    int fd3 = open("file3.txt",O_RDWR|O_CREAT|O_EXCL, 0744);
+    std::cout<<fd3<<'\n';
+    int fd4 = open("file4.txt",O_RDWR|O_CREAT|O_EXCL, 0744);
+    std::cout<<fd4<<'\n';
+    int fd5 = open("file5.txt",O_RDWR|O_CREAT|O_EXCL, 0744);
+    std::cout<<fd5<<'\n';
 
-    // Fork and run infinite loop in the background
-    //pid_t pid = fork();
-    
-    //if (pid == 0) {
-        // Child process: Run infinite loop
-        while (true) {
-		sleep(20);
-           //std::cout << "Looping..." << std::endl;
-            //sleep(1);
-        }
-
-   // }
+    for(;;);
 
     return 0;
 }

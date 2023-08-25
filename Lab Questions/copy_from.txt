@@ -1,0 +1,4 @@
+Hi, this is a sample text.
+How are you?
+What do you like?
+Okay bye!!
