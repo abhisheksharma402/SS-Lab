@@ -12,9 +12,9 @@ int main(int argc, char* argv[]){
 	
 	scanf("%c%*c",&c);
 	
-	printf("\nBefore Critical Section\n");
 	struct flock fl;
 	if(c=='w'){
+		printf("\nBefore Critical Section\n");
 			
 		fl.l_type = F_WRLCK;
 		fl.l_whence = SEEK_SET;
@@ -26,11 +26,10 @@ int main(int argc, char* argv[]){
 		printf("Write lock attained\n");
 
 
-		printf("Press enter to release lock: \n");
-		getchar();
 	}
 
 	else if(c=='r'){
+		printf("\nBefore Critical Section\n");
 		
                 fl.l_type = F_RDLCK;
                 fl.l_whence = SEEK_SET;
@@ -41,12 +40,9 @@ int main(int argc, char* argv[]){
                 fcntl(fd, F_SETLKW, &fl);
 		printf("Read lock attained\n");
 
-                printf("Press enter to release lock: \n");
-                getchar();
-
-
 	}
-	
+	printf("Press enter to release lock: \n");
+	getchar();
 
 	fl.l_type = F_UNLCK;
 
