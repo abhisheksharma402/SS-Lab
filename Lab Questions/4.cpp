@@ -1,4 +1,10 @@
-#include<bits/stdc++.h>
+/*
+Write a program to open an existing file with read write mode. Try O_EXCL flag also. 
+*/
+
+
+
+#include<stdio.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -7,10 +13,11 @@
 using namespace std;
 
 int main(){
-	int res = open("check1.txt", O_RDWR|O_CREAT);
-	cout<<res<<'\n';
+	int res = open("checkin.txt", O_RDWR|O_EXCL|O_CREAT);
+	printf("%d\n",res);
 	if(res==-1){
-		cout<<"Error number: " << errno <<'\n';
-		perror("Program");
+		printf("Error number: %d\n",errno);
+		perror("Error");
+
 	}
 }

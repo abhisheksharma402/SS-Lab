@@ -1,3 +1,7 @@
+/*
+Write a program to display the environmental variable of the user (use environ). 
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

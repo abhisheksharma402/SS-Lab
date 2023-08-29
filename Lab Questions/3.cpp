@@ -1,15 +1,20 @@
+/*
+Write a program to create a file and print the file descriptor value. Use creat ( ) system call
+*/
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <iostream>
+#include <stdio.h>
 
 int main(){
 	int fd = creat("myfile2.txt", O_RDWR);
-
-	std::cout<<"file descriptor: "<<fd<<'\n';
+	
+	printf("file descriptor: %d\n",fd);
+	
 	if(fd==-1){
-		std::cout<<"Error number: " << errno << '\n';
-		perror("Program");
-	}
+                perror("Could not Create the file\n");
+                return 0;
+       	}
 }

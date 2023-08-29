@@ -1,3 +1,11 @@
+/*
+Create the following types of a files using (i) shell command (ii) system call
+a. soft link (symlink system call)
+b. hard link (link system call)
+c. FIFO (mkfifo Library Function or mknod system call)
+*/
+
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -13,19 +21,19 @@ int main(){
 		perror("Failed");
 		return 1;
 	}
-	else std::cout<<"Created Soft Link to hi.mp3 successfully\n";
+	else printf("Created Soft Link to hi.mp3 successfully\n");
 	int hlink = link("hi.mp3", "hardLink1ToHi.mp3");
 	if(hlink<0){
 		perror("failed");
 		return 1;
 	}
-	else std::cout<<"Created Hard link to hi.mp3 successfully\n";
+	else printf("Created Hard link to hi.mp3 successfully\n");
 	int fifo = mknod("fifo3", S_IFIFO,0);
 	if(fifo<0){
 		perror("failed");
 		return 1;
 	}
-	else std::cout<<"Create a named pipe by the name fifo2\n";
+	else printf("Create a named pipe by the name fifo2\n");
         
 }
 

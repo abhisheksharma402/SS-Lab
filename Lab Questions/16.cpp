@@ -1,3 +1,10 @@
+/*
+Write a program to perform mandatory locking.
+a. Implement write lock
+b. Implement read lock
+*/
+
+
 #include<stdio.h>
 #include<unistd.h>
 #include<fcntl.h>
@@ -7,8 +14,14 @@ using namespace std;
 
 int main(int argc, char* argv[]){
 	int fd = open("fruits.txt", O_RDWR, 0744);
+	
+	if(fd==-1){
+		printf("Error while opening file\n");
+		perror("Error");
+	}
+
 	char c;
-	printf("Which lock do you want to attain on thee file?\n");
+	printf("Which lock do you want to attain on the file?\n");
 	
 	scanf("%c%*c",&c);
 	
@@ -50,6 +63,12 @@ int main(int argc, char* argv[]){
 	fcntl(fd, F_SETLK, &fl);
 	
 	printf("Lock released\n");
+	
+	int fd_close = close(fd);
 
-
+	if(fd_close==-1){
+		printf("Could not close the file\n");
+		perror("Error");
+	}
+	return 0;
 }

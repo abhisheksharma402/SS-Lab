@@ -1,3 +1,7 @@
+/*
+Write a program to find out the opening mode of a file. Use fcntl.
+*/
+
 #include<stdio.h>
 #include<fcntl.h>
 #include<stdlib.h>

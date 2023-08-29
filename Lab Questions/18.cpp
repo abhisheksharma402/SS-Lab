@@ -1,3 +1,9 @@
+/*Write a program to perform Record locking.
+a. Implement write lock
+b. Implement read lock
+Create three records in a file. Whenever you access a particular record, first lock it then modify/access
+to avoid race condition.*/
+
 #include<stdio.h>
 #include<unistd.h>
 #include<fcntl.h>
@@ -12,7 +18,8 @@ int main(int argc, char* argv[]){
 	int fd = open("Records.txt", O_RDWR, 0777);
 
 	if(fd==-1){
-		perror("Could not open the file\n");
+		printf("Could not open the file\n");
+		perror("Error");
 		return 0;
 	}
 
@@ -33,7 +40,7 @@ int main(int argc, char* argv[]){
 		struct flock fl;
 	
 		switch (lock_type){
-			case 1:
+			case 1:{
 				printf("Before Critical Section\n");
                 		fl.l_type = F_WRLCK;
                 		fl.l_whence = SEEK_SET;
@@ -42,22 +49,60 @@ int main(int argc, char* argv[]){
                 		fl.l_pid = getpid();
 
                 		fcntl(fd, F_SETLKW, &fl);
-
+				printf("Attaining Write Lock on Record %d...\n",record);
+				
+				sleep(2);
 
                 		printf("Write lock on record %d attained\n",record);
+				
+				sleep(2);
+		
+				printf("Update the record by providing input below:\n");
+
+				char buf[10];
+				lseek(fd, 10*(record-1), SEEK_SET);
+				int bytes_read = read(0,&buf,10);
+				lseek(fd, -10*(record-1), SEEK_SET);
+				
+				printf("Writing Record %d....\n",record);
+				sleep(2);
+				int bytes_written = write(fd,&buf,10);
+
+				printf("Record %d edited succesfully.",record);
 				break;
+			}
 			case 2:
+			{
 				printf("Before Critical Section\n");
                                 fl.l_type = F_RDLCK;
                                 fl.l_whence = SEEK_SET;
-                                fl.l_start = 10*(record-1);
+                                fl.l_start = 11*(record-1);
                                 fl.l_len = 10;
                                 fl.l_pid = getpid();
+				
+				fcntl(fd, F_SETLKW, &fl);
 
-                                fcntl(fd, F_SETLKW, &fl);
+				printf("\nAttaining lock on Record %d....\n",record);
+				sleep(2);
+                                
+				printf("\nRead lock on record %d attained\n",record);
+				
+				sleep(2);
 
-                                printf("Read lock on record %d attained\n",record);
+				printf("\nReading Data of Record %d....\n",record);
+				sleep(2);
+
+				printf("\nData of Record %d: \n",record);
+				
+				char buf[10];
+				lseek(fd, 10*(record-1), SEEK_SET);
+                                int bytes_read = read(fd,&buf,10);
+
+				//printf("\nData of Record %d: ",record);
+
+				int bytes_written_stdout = write(1,&buf,10);
 				break;
+			}
 			default:
 				printf("Please provide valid lock type to be attained\n");
 				break;
@@ -71,13 +116,12 @@ int main(int argc, char* argv[]){
 
 		printf("%s Lock Released on record %d\n",argv[1],record);
 
-		close(fd);
+		int fd_close = close(fd);
+		if(fd_close==-1){
+			printf("Could not close the file\n");
+			perror("Error");
+		}
 	}
-
-
-
-
-	
 
 }
 

@@ -1,26 +1,46 @@
-//
-#include<stdio.h>
-#include<unistd.h>
-#include<fcntl.h>
-#include<errno.h>
-#include<string.h>
+/*
+Write a program to open a file in read only mode, read line by line and display each line as it is read.
+Close the file when end of file is reached.
+*/
 
-int main(){
-	int fd = open("fruits.txt", O_RDONLY, 0744);
-	char buf[1024];
-	if(fd==-1){
-		printf("Error number: %d\n", errno);
-		perror("Could not open file\n");
-	}
-	
-	while(1){
-		int read_bytes = read(fd, &buf,1);
-		if(read_bytes==0)break;
-		if(buf[read_bytes-1]=='\n')
-			buf[read_bytes-1]='\0';
-		
-		int write_bytes = write(1,&buf,strlen(buf));
-	}
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h> 
+
+int main(int argc, char *argv[])
+{
+    if (argc != 2){
+        printf("Pass the file to be read as the argumenti");
+	return 0;
+    }
+    int fd = open(argv[1], O_RDONLY);
+    char buf;
+    
+    if (fd == -1){
+    	perror("Could not open the file!!");
+    	return 0;
+    }
+    
+    while (1)
+    {
+	    int bytesRead = read(fd, &buf, 1);
+	    if(bytesRead==0)break;
+	    
+	    if (buf == '\n')
+		    write(1, "\n", 1);
+	    else
+		    write(1, &buf, 1);
+    }
+    
+    int fd_close = close(fd);
+    
+    if(fd_close==-1){
+	    printf("Error while closing the file\n");
+	    perror("Error");
+    }
+    
+    
 }
-
