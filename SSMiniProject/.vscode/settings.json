@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "auth.h": "c",
+        "helper.h": "c",
+        "student.h": "c",
+        "unistd.h": "c"
+    }
+}
