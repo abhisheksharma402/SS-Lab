@@ -3,7 +3,7 @@
 #include <fcntl.h>
 
 #include "structs.h"
-
+// #include "helper.h"
 
 // student login
 bool studentLogin(int cfd, struct Student *s)
@@ -62,9 +62,9 @@ bool studentLogin(int cfd, struct Student *s)
 
         while (read(fd, &student, sizeof(struct Student)) > 0)
         {
-                printf("id: %d\n",student.rollno);
-                printf("user: %s\n",student.username);
-                printf("pass: %s\n",student.password);
+                // printf("id: %d\n",student.rollno);
+                // printf("user: %s\n",student.username);
+                // printf("pass: %s\n",student.password);
                 if (strcmp(student.username, user) == 0 && strcmp(student.password, pass) == 0)
                 {
                         *s = student;
@@ -99,7 +99,7 @@ bool facultyLogin(int cfd, struct Faculty *f)
         int rb = read(cfd, user, sizeof(user));
 
         user[rb]='\0';
-        printf("username: %s\n",user);
+        // printf("username: %s\n",user);
         if (rb == -1)
         {
                 perror("Error while reading username: ");
@@ -116,7 +116,7 @@ bool facultyLogin(int cfd, struct Faculty *f)
 
         rb = read(cfd, pass, sizeof(pass));
         pass[rb]='\0';
-        printf("password: %s\n",pass);
+        // printf("password: %s\n",pass);
         if (rb == -1)
         {
                 perror("Error while reading password: ");
@@ -136,9 +136,9 @@ bool facultyLogin(int cfd, struct Faculty *f)
 
         while (read(fd, &faculty, sizeof(struct Faculty)) > 0)
         {
-                printf("id: %d\n",faculty.faculty_id);
-                printf("user: %s\n",faculty.username);
-                printf("pass: %s\n",faculty.password);
+                // printf("id: %d\n",faculty.faculty_id);
+                // printf("user: %s\n",faculty.username);
+                // printf("pass: %s\n",faculty.password);
                 if (strcmp(faculty.username, user) == 0 && strcmp(faculty.password, pass) == 0)
                 {
                         *f = faculty;
@@ -168,6 +168,7 @@ bool adminLogin(int cfd)
         // strcpy(writeBuffer, "Welcome to Admin Menu");        
 
         // Append the request for LOGIN ID message
+        
         strcat(writeBuffer, "\n");
 
         strcat(writeBuffer, "Enter the username: ");
@@ -197,7 +198,7 @@ bool adminLogin(int cfd)
         
 
         memset(writeBuffer, 0, sizeof(writeBuffer));
-        writeBytes = write(cfd, "Enter Password: ", sizeof("Enter Password"));
+        writeBytes = write(cfd, "Enter Password: ", sizeof("Enter Password: "));
         if (writeBytes == -1)
         {
                 perror("Error writing PASSWORD message to client!");

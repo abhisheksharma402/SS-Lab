@@ -49,6 +49,7 @@ void addStudent(int cfd){
 
         fflush(stdin);
         fflush(stdout);
+
         rb = read(cfd, rbuf, sizeof(rbuf));
         
         rbuf[rb]='\0';
@@ -58,10 +59,55 @@ void addStudent(int cfd){
 
         memset(rbuf, 0, sizeof(rbuf));
 
+
+        strcpy(wbuf, "Enter the branch of student: ");
+        wb = write(cfd, wbuf, strlen(wbuf));
+        if(wb==-1){
+                perror("Error while writing to socket");
+                return;
+        }
+        memset(wbuf, 0, sizeof(wbuf));
+
+        fflush(stdin);
+        fflush(stdout);
+
+        rb = read(cfd, rbuf, sizeof(rbuf));
+        
+        rbuf[rb]='\0';
+
+        memset(student.branch, 0, 10);
+        strcpy(student.branch, rbuf);
+
+        memset(rbuf, 0, sizeof(rbuf));
+        
+        strcpy(wbuf, "Enter the degree of student: ");
+        wb = write(cfd, wbuf, strlen(wbuf));
+        if(wb==-1){
+                perror("Error while writing to socket");
+                return;
+        }
+        memset(wbuf, 0, sizeof(wbuf));
+
+        fflush(stdin);
+        fflush(stdout);
+
+        rb = read(cfd, rbuf, sizeof(rbuf));
+        
+        rbuf[rb]='\0';
+
+        memset(student.degree, 0, 10);
+        strcpy(student.degree, rbuf);
+
+        memset(rbuf, 0, sizeof(rbuf));
+
+
         memset(student.password, 0, 50);
         strcpy(student.password, "student");
 
         memset(student.courses, -1, 6*sizeof(int));
+
+        student.isActivated=true;
+        student.isBlocked=false;
 
         int fd_count = open("count.txt", O_RDWR);
 
@@ -175,7 +221,7 @@ bool viewStudentDetails(int cfd){
     strcpy(wbuf, "\n**************Required Student Details**************\n");
 
     char temp[1024];
-    sprintf(temp, "\nStudent Name: %s\nRoll Number: %d\nUsername: %s\n",cur.name,cur.rollno,cur.username);
+    sprintf(temp, "\nStudent Name: %s\nRoll Number: %d\nUsername: %s\nBranch: %s\nDegree: %s\n",cur.name,cur.rollno,cur.username,cur.branch,cur.degree);
     if(cur.isActivated)strcat(temp,"Activated: Yes\n");
     else strcat(temp, "Activated: No\n");
 
@@ -226,7 +272,7 @@ void addFaculty(int cfd){
         strcpy(faculty.name, rbuf);
 
         memset(rbuf, 0, sizeof(rbuf));
-        printf("rbuf size: %ld\n",sizeof(rbuf));
+        // printf("rbuf size: %ld\n",sizeof(rbuf));
         strcpy(wbuf, "Enter the username of faculty: ");
         wb = write(cfd, wbuf, strlen(wbuf));
         if(wb==-1){
@@ -242,6 +288,26 @@ void addFaculty(int cfd){
         strcpy(faculty.username, rbuf);
 
         memset(rbuf, 0, sizeof(rbuf));
+
+
+
+        strcpy(wbuf, "Enter the branch of faculty: ");
+        wb = write(cfd, wbuf, strlen(wbuf));
+        if(wb==-1){
+                perror("Error while writing to socket");
+                return;
+        }
+        memset(wbuf, 0, sizeof(wbuf));
+
+        rb = read(cfd, rbuf, sizeof(rbuf));
+        
+        rbuf[rb]='\0';
+        memset(faculty.branch, 0, 10);
+        strcpy(faculty.branch, rbuf);
+
+        memset(rbuf, 0, sizeof(rbuf));
+
+
 
         memset(faculty.password, 0, 50);
         strcpy(faculty.password, "faculty");
@@ -356,7 +422,7 @@ bool viewFacultyDetails(int cfd){
     strcpy(wbuf, "\n**************Required Faculty Details**************\n");
 
     char temp[1024];
-    sprintf(temp, "\nFaculty Name: %s\nFaculty Id: %d\nUsername: %s\n",cur.name,cur.faculty_id,cur.username);
+    sprintf(temp, "\nFaculty Name: %s\nFaculty Id: %d\nUsername: %s\nBranch: %s\n",cur.name,cur.faculty_id,cur.username,cur.branch);
     
     strcat(wbuf, temp);
 
@@ -401,6 +467,7 @@ bool blockStudent(int cfd){
         int fd = open("students.txt", O_RDWR);
         if(fd==-1){
                 perror("error while opening students file");
+                close(fd);
                 return false;
         }
 
@@ -410,14 +477,36 @@ bool blockStudent(int cfd){
                 return false;
         }
 
+
         struct Student student;
+
+        struct flock lock = {F_WRLCK, SEEK_CUR, 0, sizeof(struct Student), getpid()};
+        int fs = fcntl(fd, F_SETLKW, &lock);
+
+        if(fs==-1){
+                perror("error while attaining write lock on student record");
+                close(fd);
+                return false;
+        }
+
         rb = read(fd, &student, sizeof(struct Student));
 
         student.isBlocked = true;
+        student.isActivated = false;
 
         offset = lseek(fd, roll*sizeof(struct Student), SEEK_SET);
 
         wb = write(fd, &student, sizeof(struct Student));
+
+        lock.l_type = F_UNLCK;
+        fs = fcntl(fd, F_SETLKW, &lock);
+        if(fs==-1){
+                perror("error while removing write lock from student record");
+                close(fd);
+                return false;
+        }
+
+        close(fd);
 
         return true;
 
@@ -425,543 +514,469 @@ bool blockStudent(int cfd){
 
 
 
-// void addStudent(int cfd){
-
-//     int fd = open("students.txt", O_RDONLY, 0744);
-//     struct Student cur, prev;
-
-//     if(fd==-1 && errno==ENOENT){
-//         cur.rollno = 0;
-//     }else if(fd==-1){
-//         perror("Error while opening file");
-//         return;
-//     }
-//     else{
-    
-//         int off = lseek(fd, -sizeof(struct Student), SEEK_END);
-
-//         if(off==-1){
-//             perror("Error seeking to the last record ");
-//             return;
-//         }
-
-//         struct flock lock = {F_RDLCK, SEEK_SET, off, sizeof(struct Student), getpid()};
-
-//         int lockingStatus = fcntl(fd, F_SETLKW, &lock);
-//         if (lockingStatus == -1)
-//         {
-//             perror("Error obtaining read lock on student record!");
-//             return;
-//         }
-
-//         int rb = read(fd, &prev, sizeof(struct Student));
-//         if (rb == -1)
-//         {
-//             perror("Error while reading student record from file!");
-//             return;
-//         }
-//         printf("prev roll: %d",prev.rollno);
-//         lock.l_type = F_UNLCK;
-//         fcntl(fd, F_SETLK, &lock);
-//         close(fd);
 
-//         cur.rollno = prev.rollno+1;
-//     }
 
-//     fd = open("students.txt", O_WRONLY|O_CREAT, 0744);
+bool activateStudent(int cfd){
+        char rbuf[1024],wbuf[1024];
+        memset(rbuf, 0, sizeof(rbuf));
+        memset(wbuf, 0, sizeof(wbuf));
 
-//     if(fd==-1){
-//         perror("Error while opening file");
-//         return;
-//     }
-
-//     char rbuf[1024],wbuf[1024]="Enter name of the student: ";
+        strcpy(wbuf, "Enter the id of the student you want to activate: ");
+        int wb = write(cfd, wbuf, strlen(wbuf));
+        if(wb==-1){
+                perror("error while writing to client");
+                return false;
+        }
 
-//     int wb = write(cfd, wbuf, strlen(wbuf));
-// 	if(wb==-1){
-// 		perror("Error while asking for name: ");
-// 		return;
-// 	}
-
-// 	int rb = read(cfd, rbuf, sizeof(rbuf));
-//     rbuf[rb]='\0';
-// 	if(rb==-1){
-// 		perror("Error while reading name: ");
-// 		return;
-// 	}
-//     strcpy(cur.name, rbuf);
-
-//     strcpy(wbuf, "Enter the username of the student: ");
-
-//     wb = write(cfd, wbuf, strlen(wbuf));
-// 	if(wb==-1){
-// 		perror("Error while asking for username: ");
-// 		return;
-// 	}
-
-//     memset(rbuf, 0, sizeof(rbuf));
-
-//     rb = read(cfd, rbuf, sizeof(rbuf));
-
-// 	if(rb==-1){
-// 		perror("Error while reading username: ");
-// 		return;
-// 	}
-    
-//     strcpy(cur.username, rbuf);
-
-//     strcpy(wbuf, "Enter the password of the student: ");
-
-//     wb = write(cfd, wbuf, strlen(wbuf));
-// 	if(wb==-1){
-// 		perror("Error while asking for password: ");
-// 		return;
-// 	}
+        int rb = read(cfd, rbuf, sizeof(rbuf));
+        
+        if(rb==-1){
+                perror("error while reading from socket");
+                return false;
+        }
+        rbuf[rb]='\0';
 
-//     memset(rbuf, 0, sizeof(rbuf));
-
-//     rb = read(cfd, rbuf, sizeof(rbuf));
+        int roll = atoi(rbuf);
 
-// 	if(rb==-1){
-// 		perror("Error while reading password: ");
-// 		return;
-// 	}
-    
-//     strcpy(cur.password, rbuf);
+        int fd = open("students.txt", O_RDWR);
+        if(fd==-1){
+                perror("error while opening students file");
+                close(fd);
+                return false;
+        }
 
-//     cur.isActivated=false;
-//     cur.isBlocked=false;
+        int offset = lseek(fd, roll*sizeof(struct Student), SEEK_SET);
 
-//     memset(cur.courses, -1, 6*sizeof(int));
+        if(offset==-1){
+                return false;
+        }
 
-//     // add the student
-    
-//     int l = lseek(fd, 0, SEEK_END);
 
-//     if(l==-1){
-//         perror("Error while moving file pointer\n");
-//         return;
-//     }
+        struct Student student;
 
-//     wb = write(fd, &cur, sizeof(struct Student));
-//     if(wb==-1){
-//         perror("Error while writing into file ");
-//         return;
-//     }
+        struct flock lock = {F_WRLCK, SEEK_CUR, 0, sizeof(struct Student), getpid()};
+        int fs = fcntl(fd, F_SETLKW, &lock);
 
-//     strcpy(wbuf, "Student added successfully\n");
-
-//     wb = write(cfd, wbuf, strlen(wbuf));
-
-//     return;
-
-//     // memset(rbuf, 0, sizeof(rbuf));
-
-//     // rb = read(cfd, rbuf, sizeof(rbuf));
-
-// }
-
-
-
-// void viewStudentDetails(int cfd){
-
-//     int fd = open("students.txt", O_RDONLY|O_CREAT, 0744);
-//     char rbuf[1000], wbuf[1000];
-//     memset(rbuf, 0, sizeof(rbuf));
-//     memset(wbuf, 0, sizeof(wbuf));
-//     if(fd==-1){
-//         perror("Error while opening file ");
-//         int rb = read(cfd, rbuf, sizeof(rbuf));
-//         return;
-//     }
-
-//     struct Student s;
-
-    
-//     while(read(fd, &s, sizeof(struct Student))>0){
-//         char temp[1024]="";
-//         char r[10];
-//         sprintf(r, "%d", s.rollno);
-//         strcat(temp,s.name);
-//         strcat(temp,"\t");
-//         strcat(temp,r);
-//         strcat(temp,"\t");
-//         strcat(temp,s.username);
-//         strcat(temp, "\n");
-//         strcat(wbuf,temp);
-//     }
-
-//     int wb = write(cfd, wbuf, sizeof(wbuf));
-//     printf("wbuf: %s\n",wbuf);
-//     printf("written: %d\n",wb);
-//     if(wb==-1){
-//         perror("Error while writing to file\n");
-//         return;
-//     }
-    
-//     // strcpy(wbuf, "Enter a character to continue: ");
-//     // wb = write(cfd, wbuf, sizeof(wbuf));
-
-//     // int rb = read(cfd, rbuf, sizeof(rbuf));
-
-//     return;
-
-// }
-
-
-
-// bool viewStudentDetails(int cfd, int roll){
-
-//     ssize_t readBytes, writeBytes;             // Number of bytes read from / written to the socket
-//     char readBuffer[1000], writeBuffer[10000]; // A buffer for reading from / writing to the socket
-//     char tempBuffer[1000];
-
-//     struct Student student;
-//     // int fd;
-//     struct flock lock = {F_RDLCK, SEEK_SET, 0, sizeof(struct Student), getpid()};
-
-//     if (roll == -1)
-//     {
-//         writeBytes = write(cfd, "Enter the roll number of the student you are searching for: ", strlen("Enter the roll number of the student you are searching for: "));
-//         if (writeBytes == -1)
-//         {
-//             perror("Error while writing GET_CUSTOMER_ID message to client!");
-//             return false;
-//         }
-
-//         bzero(readBuffer, 1000);
-//         readBytes = read(cfd, readBuffer, sizeof(readBuffer));
-//         if (readBytes == -1)
-//         {
-//             perror("Error getting customer ID from client!");
-//             return false;
-//         }
-
-//         roll = atoi(readBuffer);
-//     }
-
-//     int fd = open("students.txt", O_RDONLY);
-
-//     printf("roll: %d\n",roll);
-//     if (fd == -1)
-//     {
-//         // Customer File doesn't exist
-//         bzero(writeBuffer, 1000);
-//         strcpy(writeBuffer, "Student with this roll number does not exist");
-//         // strcat(writeBuffer, "^");
-//         writeBytes = write(cfd, writeBuffer, strlen(writeBuffer));
-//         if (writeBytes == -1)
-//         {
-//             perror("Error while writing message to client!");
-//             return false;
-//         }
-//         readBytes = read(cfd, readBuffer, sizeof(readBuffer)); // Dummy read
-//         return false;
-//     }
-//     int offset = lseek(fd, roll*sizeof(struct Student), SEEK_SET);
-//     printf("errno: %d\n",errno);
-//     perror("error");
-//     if (errno == EINVAL)
-//     {
-//         bzero(writeBuffer, 1000);
-//         strcpy(writeBuffer, "roll number does not exist");
-
-//         writeBytes = write(cfd, writeBuffer, strlen(writeBuffer));
-//         if (writeBytes == -1)
-//         {
-//             perror("Error while writing message to client!");
-//             return false;
-//         }
-//         readBytes = read(cfd, readBuffer, sizeof(readBuffer)); // Dummy read
-//         return false;
-//     }
-//     else if (offset == -1)
-//     {
-//         perror("Error while seeking to required student record!");
-//         return false;
-//     }
-//     lock.l_start = offset;
-
-//     int lockingStatus = fcntl(fd, F_SETLKW, &lock);
-//     if (lockingStatus == -1)
-//     {
-//         perror("Error while obtaining read lock on the student file!");
-//         return false;
-//     }
-
-//     readBytes = read(fd, &student, sizeof(struct Student));
-//     if (readBytes == -1)
-//     {
-//         perror("Error reading student record from file!");
-//         return false;
-//     }
-
-//     lock.l_type = F_UNLCK;
-//     fcntl(fd, F_SETLK, &lock);
-
-//     bzero(writeBuffer, 1000);
-//     for(int i=0;i<6;i++){
-//         printf("%d\n",student.courses[i]);
-//     }
-//     sprintf(writeBuffer, "Student Details - \n\tRoll Number : %d\n\tName : %s\n\tUsername : %s\n", student.rollno, student.name, student.username);
-
-//     // strcat(writeBuffer, "\n\nYou'll now be redirected to the main menu...");
-
-//     writeBytes = write(cfd, writeBuffer, strlen(writeBuffer));
-//     if (writeBytes == -1)
-//     {
-//         perror("Error writing student info to client!");
-//         return false;
-//     }
-
-//     // readBytes = read(cfd, readBuffer, sizeof(readBuffer)); // Dummy read
-//     // continue;
-//     return true;
-// }
-
-
-
-// void addFaculty(int cfd){
-
-//     int fd = open("faculty.txt", O_RDONLY, 0744);
-//     struct Faculty cur, prev;
-
-//     if(fd==-1 && errno==ENOENT){
-//         cur.faculty_id = 0;
-//     }else if(fd==-1){
-//         perror("Error while opening file");
-//         return;
-//     }
-//     else{
-    
-//         int off = lseek(fd, -sizeof(struct Faculty), SEEK_END);
-
-//         if(off==-1){
-//             perror("Error seeking to the last record ");
-//             return;
-//         }
-
-//         struct flock lock = {F_RDLCK, SEEK_SET, off, sizeof(struct Faculty), getpid()};
-
-//         int lockingStatus = fcntl(fd, F_SETLKW, &lock);
-//         if (lockingStatus == -1)
-//         {
-//             perror("Error obtaining read lock on student record!");
-//             return;
-//         }
-
-//         int rb = read(fd, &prev, sizeof(struct Faculty));
-//         if (rb == -1)
-//         {
-//             perror("Error while reading faculty record from file!");
-//             return;
-//         }
-//         printf("prev roll: %d",prev.faculty_id);
-//         lock.l_type = F_UNLCK;
-//         fcntl(fd, F_SETLK, &lock);
-//         close(fd);
-
-//         cur.faculty_id = prev.faculty_id+1;
-//     }
-
-//     fd = open("faculty.txt", O_WRONLY|O_CREAT, 0744);
-
-//     if(fd==-1){
-//         perror("Error while opening file");
-//         return;
-//     }
-
-//     char rbuf[1024],wbuf[1024]="Enter name of the faculty: ";
-
-//     int wb = write(cfd, wbuf, strlen(wbuf));
-// 	if(wb==-1){
-// 		perror("Error while asking for name: ");
-// 		return;
-// 	}
-
-// 	int rb = read(cfd, rbuf, sizeof(rbuf));
-
-// 	if(rb==-1){
-// 		perror("Error while reading name: ");
-// 		return;
-// 	}
-//     strcpy(cur.name, rbuf);
-
-//     strcpy(wbuf, "Enter the username of the faculty: ");
-
-//     wb = write(cfd, wbuf, strlen(wbuf));
-// 	if(wb==-1){
-// 		perror("Error while asking for username: ");
-// 		return;
-// 	}
-
-//     memset(rbuf, 0, sizeof(rbuf));
-
-//     rb = read(cfd, rbuf, sizeof(rbuf));
-    
-// 	if(rb==-1){
-// 		perror("Error while reading username: ");
-// 		return;
-// 	}
-//     printf("username: %s\n",rbuf);
-//     strcpy(cur.username, rbuf);
-
-//     strcpy(wbuf, "Enter the password of the faculty: ");
-
-//     wb = write(cfd, wbuf, strlen(wbuf));
-// 	if(wb==-1){
-// 		perror("Error while asking for password: ");
-// 		return;
-// 	}
-
-//     memset(rbuf, 0, sizeof(rbuf));
-
-//     rb = read(cfd, rbuf, sizeof(rbuf));
-
-// 	if(rb==-1){
-// 		perror("Error while reading password: ");
-// 		return;
-// 	}
-    
-//     strcpy(cur.password, rbuf);
-
-
-//     memset(cur.courses, -1, 4*sizeof(int));
-
-    
-//     int l = lseek(fd, 0, SEEK_END);
-
-//     if(l==-1){
-//         perror("Error while moving file pointer\n");
-//         return;
-//     }
-
-//     wb = write(fd, &cur, sizeof(struct Faculty));
-//     if(wb==-1){
-//         perror("Error while writing into file ");
-//         return;
-//     }
-
-//     strcpy(wbuf, "Faculty added successfully\n");
-
-//     wb = write(cfd, wbuf, strlen(wbuf));
-
-//     return;
-
-//     // memset(rbuf, 0, sizeof(rbuf));
-
-//     // rb = read(cfd, rbuf, sizeof(rbuf));
-
-// }
-
-
-
-
-
-
-// bool viewFacultyDetails(int cfd, int id){
-
-//     ssize_t readBytes, writeBytes;             // Number of bytes read from / written to the socket
-//     char readBuffer[1000], writeBuffer[10000]; // A buffer for reading from / writing to the socket
-//     char tempBuffer[1000];
-
-//     struct Faculty faculty;
-//     // int fd;
-//     struct flock lock = {F_RDLCK, SEEK_SET, 0, sizeof(struct Faculty), getpid()};
-
-//     if (id == -1)
-//     {
-//         writeBytes = write(cfd, "Enter the id of the faculty you are searching for: ", strlen("Enter the id of the faculty you are searching for: "));
-//         if (writeBytes == -1)
-//         {
-//             perror("Error while writing message to client!");
-//             return false;
-//         }
-
-//         bzero(readBuffer, 1000);
-//         readBytes = read(cfd, readBuffer, sizeof(readBuffer));
-//         if (readBytes == -1)
-//         {
-//             perror("Error getting faculty id from client!");
-//             return false;
-//         }
-
-//         id = atoi(readBuffer);
-//     }
-
-//     int fd = open("faculty.txt", O_RDONLY);
-
-//     printf("id: %d\n",id);
-//     if (fd == -1)
-//     {
-//         bzero(writeBuffer, 1000);
-//         strcpy(writeBuffer, "Faculty with this id does not exist");
-//         // strcat(writeBuffer, "^");
-//         writeBytes = write(cfd, writeBuffer, strlen(writeBuffer));
-//         if (writeBytes == -1)
-//         {
-//             perror("Error while writing message to client!");
-//             return false;
-//         }
-//         readBytes = read(cfd, readBuffer, sizeof(readBuffer)); // Dummy read
-//         return false;
-//     }
-//     // printf("index:  %d", id);
-//     int offset = lseek(fd, id*sizeof(struct Faculty), SEEK_SET);
-//     printf("errno: %d\n",errno);
-//     perror("error");
-//     if (errno == EINVAL)
-//     {
-//         bzero(writeBuffer, 1000);
-//         strcpy(writeBuffer, "id does not exist");
-
-//         writeBytes = write(cfd, writeBuffer, strlen(writeBuffer));
-//         if (writeBytes == -1)
-//         {
-//             perror("Error while writing message to client!");
-//             return false;
-//         }
-//         readBytes = read(cfd, readBuffer, sizeof(readBuffer)); // Dummy read
-//         return false;
-//     }
-//     else if (offset == -1)
-//     {
-//         perror("Error while seeking to required faculty record!");
-//         return false;
-//     }
-//     lock.l_start = offset;
-
-//     int lockingStatus = fcntl(fd, F_SETLKW, &lock);
-//     if (lockingStatus == -1)
-//     {
-//         perror("Error while obtaining read lock on the student file!");
-//         return false;
-//     }
-
-//     readBytes = read(fd, &faculty, sizeof(struct Faculty));
-//     printf("read: %ld\n",readBytes);
-//     if (readBytes == -1)
-//     {
-//         perror("Error reading faculty record from file!");
-//         return false;
-//     }
-
-//     lock.l_type = F_UNLCK;
-//     fcntl(fd, F_SETLK, &lock);
-
-//     bzero(writeBuffer, 1000);
-//     sprintf(writeBuffer, "Faculty Details - \n\tFaculty id: %d\n\tName : %s\n\tUsername : %s", faculty.faculty_id, faculty.name, faculty.username);
-
-
-//     writeBytes = write(cfd, writeBuffer, strlen(writeBuffer));
-//     if (writeBytes == -1)
-//     {
-//         perror("Error writing faculty info to client!");
-//         return false;
-//     }
-
-//     return true;
-// }
+        if(fs==-1){
+                perror("error while attaining write lock on student record");
+                close(fd);
+                return false;
+        }
+
+        rb = read(fd, &student, sizeof(struct Student));
+
+        student.isBlocked = false;
+        student.isActivated = true;
+
+        offset = lseek(fd, roll*sizeof(struct Student), SEEK_SET);
+
+        wb = write(fd, &student, sizeof(struct Student));
+
+        lock.l_type = F_UNLCK;
+        fs = fcntl(fd, F_SETLKW, &lock);
+        if(fs==-1){
+                perror("error while removing write lock from student record");
+                close(fd);
+                return false;
+        }
+
+        close(fd);
+
+        return true;
+
+}
+
+
+
+
+bool modifyStudentDetails(int cfd){
+        char rbuf[1024],wbuf[1024];
+        memset(rbuf, 0, sizeof(rbuf));
+        memset(wbuf, 0, sizeof(wbuf));
+
+
+        strcpy(wbuf, "Enter the roll number of the student whose details you want to edit: ");
+
+        int wb = write(cfd, wbuf, strlen(wbuf));
+
+        
+
+        int rb = read(cfd, rbuf, sizeof(rbuf));
+
+        rbuf[rb]='\0';
+
+        int roll = atoi(rbuf);
+
+        memset(wbuf, 0, sizeof(wbuf));
+        memset(rbuf, 0, sizeof(rbuf));
+
+        struct Student st;
+
+        int fd = open("students.txt", O_RDWR);
+
+        if(fd==-1){
+                perror("error while opening students file");
+                return false;
+        }
+
+        while(1){
+                struct flock lock = {F_WRLCK, SEEK_CUR, 0, sizeof(struct Student), getpid()};
+                int fs = fcntl(fd, F_SETLKW, &lock);
+                if(fs==-1){
+                        perror("Error while attaining write lock on student record");
+                        close(fd);
+                        return false;
+                }
+
+                rb = read(fd, &st, sizeof(struct Student));
+                if(rb==-1){
+                        perror("error while reading student record");
+                        close(fd);
+                        return false;
+                }
+                
+                if(st.rollno == roll){
+                        strcpy(wbuf, "What do you want to edit?\n\n1. Name\n2. Branch\n3. Degree\n 4. Username\n\n");
+                        int wb = write(cfd, wbuf, strlen(wbuf));
+
+                        int rb = read(cfd, rbuf, sizeof(rbuf));
+                        rbuf[rb]='\0';
+
+                        int choice = atoi(rbuf);
+                        
+                        memset(wbuf, 0, sizeof(wbuf));
+                        memset(rbuf, 0, sizeof(rbuf));
+
+                        switch(choice){
+                                case 1:
+                                {
+                                        memset(wbuf, 0, sizeof(wbuf));
+                                        memset(rbuf, 0, sizeof(rbuf));
+                                        strcpy(wbuf, "Enter the new Name: ");
+                                        int wb = write(cfd, wbuf, strlen(wbuf));
+
+                                        int rb = read(cfd, rbuf, sizeof(rbuf));
+                                        rbuf[rb]='\0';
+
+                                        memset(st.name, 0, 256);
+
+                                        strcpy(st.name, rbuf);
+                                        
+                                        break;
+
+
+                                }
+                                case 2:
+                                {
+                                        memset(wbuf, 0, sizeof(wbuf));
+                                        memset(rbuf, 0, sizeof(rbuf));
+
+                                        strcpy(wbuf, "Enter the new branch: ");
+                                        int wb = write(cfd, wbuf, strlen(wbuf));
+
+                                        int rb = read(cfd, rbuf, sizeof(rbuf));
+                                        rbuf[rb]='\0';
+
+                                        memset(st.branch, 0, 10);
+
+                                        strcpy(st.branch, rbuf);
+                                        
+                                        break;
+
+
+                                }
+                                
+                                case 3:
+                                {
+                                        memset(wbuf, 0, sizeof(wbuf));
+                                        memset(rbuf, 0, sizeof(rbuf));
+                                        strcpy(wbuf, "Enter the new degree: ");
+                                        int wb = write(cfd, wbuf, strlen(wbuf));
+
+                                        int rb = read(cfd, rbuf, sizeof(rbuf));
+                                        rbuf[rb]='\0';
+
+                                        memset(st.degree, 0, 10);
+
+                                        strcpy(st.degree, rbuf);
+                                        
+                                        break;
+
+
+                                }
+                                case 4:
+                                {
+                                        memset(wbuf, 0, sizeof(wbuf));
+                                        memset(rbuf, 0, sizeof(rbuf));
+                                        strcpy(wbuf, "Enter the new username: ");
+                                        int wb = write(cfd, wbuf, strlen(wbuf));
+
+                                        int rb = read(cfd, rbuf, sizeof(rbuf));
+                                        rbuf[rb]='\0';
+
+                                        memset(st.username, 0, 50);
+
+                                        strcpy(st.username, rbuf);
+                                        
+                                        break;
+
+
+                                }
+
+                                default:
+                                {
+                                        memset(wbuf, 0, sizeof(wbuf));
+                                        strcpy(wbuf, "Invalid Choice!\n");
+                                        write(cfd, wbuf, strlen(wbuf));
+                                        return false;
+                                }
+
+                        }
+
+                        int offset = lseek(fd, -sizeof(struct Student), SEEK_CUR);
+                        if(offset==-1){
+                                perror("Error while seeking to start of the record");
+                                return false;
+                        }
+
+                        wb = write(fd, &st, sizeof(struct Student));
+
+                        if(wb==-1){
+                                perror("error while writing student record");
+                                return false;
+                        }
+
+                        // close(fd);
+
+                        offset = lseek(fd, -sizeof(struct Student), SEEK_CUR);
+                        if(offset==-1){
+                                perror("Error while seeking to start of the record");
+                                return false;
+                        }
+
+                        lock.l_type = F_UNLCK;
+
+                        fs = fcntl(fd, F_SETLKW, &lock);
+
+                        if(fs==-1){
+                                perror("error while removing write lock from the record");
+                        }
+
+                        close(fd);
+
+                        return true;
+
+
+                }
+
+                lock.l_type = F_UNLCK;
+
+                fs = fcntl(fd, F_SETLKW, &lock);
+
+                if(fs==-1){
+                        perror("error while removing write lock from the record");
+                }
+
+        }
+ 
+        memset(wbuf, 0, sizeof(wbuf));
+        strcpy(wbuf, "\n\nStudent with this id not found!\n\n");
+        
+        wb = write(cfd, wbuf, strlen(wbuf));
+
+        return false;
+
+}
+
+
+
+
+
+bool modifyFacultyDetails(int cfd){
+        char rbuf[1024],wbuf[1024];
+        memset(rbuf, 0, sizeof(rbuf));
+        memset(wbuf, 0, sizeof(wbuf));
+
+
+        strcpy(wbuf, "Enter the id of the faculty whose details you want to edit: ");
+
+        int wb = write(cfd, wbuf, strlen(wbuf));
+
+        
+
+        int rb = read(cfd, rbuf, sizeof(rbuf));
+
+        rbuf[rb]='\0';
+
+        int id = atoi(rbuf);
+
+        memset(wbuf, 0, sizeof(wbuf));
+        memset(rbuf, 0, sizeof(rbuf));
+
+        struct Faculty fac;
+
+        int fd = open("faculty.txt", O_RDWR);
+
+        if(fd==-1){
+                perror("error while opening faculty file");
+                return false;
+        }
+
+        while(1){
+                struct flock lock = {F_WRLCK, SEEK_CUR, 0, sizeof(struct Faculty), getpid()};
+                int fs = fcntl(fd, F_SETLKW, &lock);
+                if(fs==-1){
+                        perror("Error while attaining write lock on faculty record");
+                        close(fd);
+                        return false;
+                }
+
+                rb = read(fd, &fac, sizeof(struct Faculty));
+                if(rb==-1){
+                        perror("error while reading faculty record");
+                        close(fd);
+                        return false;
+                }
+                
+                if(fac.faculty_id == id){
+                        strcpy(wbuf, "What do you want to edit?\n\n1. Name\n2. Branch\n3. Username\n\n");
+                        int wb = write(cfd, wbuf, strlen(wbuf));
+
+                        int rb = read(cfd, rbuf, sizeof(rbuf));
+                        rbuf[rb]='\0';
+
+                        int choice = atoi(rbuf);
+                        
+                        memset(wbuf, 0, sizeof(wbuf));
+                        memset(rbuf, 0, sizeof(rbuf));
+
+                        switch(choice){
+                                case 1:
+                                {
+                                        memset(wbuf, 0, sizeof(wbuf));
+                                        memset(rbuf, 0, sizeof(rbuf));
+                                        strcpy(wbuf, "Enter the new Name: ");
+                                        int wb = write(cfd, wbuf, strlen(wbuf));
+
+                                        int rb = read(cfd, rbuf, sizeof(rbuf));
+                                        rbuf[rb]='\0';
+
+                                        memset(fac.name, 0, 256);
+
+                                        strcpy(fac.name, rbuf);
+                                        
+                                        break;
+
+
+                                }
+                                case 2:
+                                {
+                                        memset(wbuf, 0, sizeof(wbuf));
+                                        memset(rbuf, 0, sizeof(rbuf));
+
+                                        strcpy(wbuf, "Enter the new branch: ");
+                                        int wb = write(cfd, wbuf, strlen(wbuf));
+
+                                        int rb = read(cfd, rbuf, sizeof(rbuf));
+                                        rbuf[rb]='\0';
+
+                                        memset(fac.branch, 0, 10);
+
+                                        strcpy(fac.branch, rbuf);
+                                        
+                                        break;
+
+
+                                }
+                                
+                                case 3:
+                                {
+                                        memset(wbuf, 0, sizeof(wbuf));
+                                        memset(rbuf, 0, sizeof(rbuf));
+                                        strcpy(wbuf, "Enter the new username: ");
+                                        int wb = write(cfd, wbuf, strlen(wbuf));
+
+                                        int rb = read(cfd, rbuf, sizeof(rbuf));
+                                        rbuf[rb]='\0';
+
+                                        memset(fac.username, 0, 50);
+
+                                        strcpy(fac.username, rbuf);
+                                        
+                                        break;
+
+
+                                }
+
+                                default:
+                                {
+                                        memset(wbuf, 0, sizeof(wbuf));
+                                        strcpy(wbuf, "Invalid Choice!\n");
+                                        write(cfd, wbuf, strlen(wbuf));
+                                        return false;
+                                }
+
+                        }
+
+                        int offset = lseek(fd, -sizeof(struct Faculty), SEEK_CUR);
+                        if(offset==-1){
+                                perror("Error while seeking to start of the record");
+                                return false;
+                        }
+
+                        wb = write(fd, &fac, sizeof(struct Faculty));
+
+                        if(wb==-1){
+                                perror("error while writing student record");
+                                return false;
+                        }
+
+                        // close(fd);
+
+                        offset = lseek(fd, -sizeof(struct Faculty), SEEK_CUR);
+                        if(offset==-1){
+                                perror("Error while seeking to start of the record");
+                                return false;
+                        }
+
+                        lock.l_type = F_UNLCK;
+
+                        fs = fcntl(fd, F_SETLKW, &lock);
+
+                        if(fs==-1){
+                                perror("error while removing write lock from the record");
+                        }
+
+                        close(fd);
+
+                        return true;
+
+
+                }
+
+                lock.l_type = F_UNLCK;
+
+                fs = fcntl(fd, F_SETLKW, &lock);
+
+                if(fs==-1){
+                        perror("error while removing write lock from the record");
+                }
+
+        }
+ 
+        memset(wbuf, 0, sizeof(wbuf));
+        strcpy(wbuf, "\n\nFaculty with this id not found!\n\n");
+        
+        wb = write(cfd, wbuf, strlen(wbuf));
+
+        return false;
+
+}
+
+
+
+
+
 
 
 void adminMenu(int cfd){
@@ -1036,18 +1051,55 @@ void adminMenu(int cfd){
                 }
                 case 5:
                 {
+
                         break;
                 }
                 case 6:
                 {
+                        bool isBlocked = blockStudent(cfd);
+                        char bf[100];
+                        if(!isBlocked){
+                                strcpy(bf, "Student couldn't be blocked!\n");
+                                wb = write(cfd, bf, strlen(bf));
+                                if(wb==-1){
+                                        perror("error while writing to socket");
+                                }
+                        }
+                        else{
+                               strcpy(bf, "Student blocked Successfully!\n");
+                               wb = write(cfd, bf, strlen(bf));
+                                if(wb==-1){
+                                        perror("error while writing to socket");
+                                } 
+                        }
+
                         break;
                 }
                 case 7:
                 {
+                        bool modified = modifyStudentDetails(cfd);
+                        if(modified){
+                                char bf[100];
+                                strcpy(bf, "Student Details modified Successfully!\n");
+                                wb = write(cfd, bf, strlen(bf));
+                                if(wb==-1){
+                                        perror("error while writing to socket");
+                                } 
+                        }
+                        
                         break;
                 }
                 case 8:
                 {
+                        bool modified = modifyFacultyDetails(cfd);
+                        if(modified){
+                                char bf[100];
+                                strcpy(bf, "Faculty Details modified Successfully!\n");
+                                wb = write(cfd, bf, strlen(bf));
+                                if(wb==-1){
+                                        perror("error while writing to socket");
+                                } 
+                        }
                         break;
                 }
                 case 9:

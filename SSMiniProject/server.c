@@ -30,9 +30,13 @@ void main()
         _exit(0);
     }
 
-    serverAddress.sin_family = AF_INET;                // IPv4
-    serverAddress.sin_port = htons(8041);              // Server will listen to port 8080
-    serverAddress.sin_addr.s_addr = htonl(INADDR_ANY); // Binds the socket to all interfaces
+    printf("Enter the port number: ");
+    int port;
+    scanf("%d",&port);
+
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(port);
+    serverAddress.sin_addr.s_addr = htons(INADDR_ANY); 
 
     socketBindStatus = bind(socketFileDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
     if (socketBindStatus == -1)
@@ -66,7 +70,8 @@ void main()
                 // Child will enter this branch
                 conn(connectionFileDescriptor);
                 close(connectionFileDescriptor);
-                _exit(0);
+                // _exit(0);
+                break;
             }
 			
         }
@@ -79,7 +84,7 @@ void conn(int cfd)
 {
     printf("Client has connected to the server!\n");
 
-
+    bool flag=0;
     while(1){
         char readBuffer[1000], writeBuffer[1000];
         ssize_t readBytes, writeBytes;
@@ -117,14 +122,16 @@ void conn(int cfd)
                 case 3:
                     adminMenu(cfd);
                     break;
-                case 4:
-                    return;
                 default:
-                    // Exit
+                    memset(writeBuffer, 0, sizeof(writeBuffer));
+                    strcpy(writeBuffer, "Invalid Choice!\n");
+                    write(cfd, writeBuffer, strlen(writeBuffer));
+                    flag=1;
                     break;
                 }
             }
         }
+        if(flag)break;
     }
     printf("Terminating connection to client!\n");
 }

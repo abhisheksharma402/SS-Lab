@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
 #include <string.h>
 
 void conn(int sockFD);
@@ -22,9 +23,13 @@ void main()
         _exit(0);
     }
 
+    printf("Enter the port number: ");
+    int port;
+    scanf("%d",&port);
+
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(8041);           
-    serverAddress.sin_addr.s_addr = htonl(INADDR_ANY); 
+    serverAddress.sin_port = htons(port);           
+    serverAddress.sin_addr.s_addr = htons(INADDR_ANY);
 
     connectStatus = connect(socketFileDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
     if (connectStatus == -1)
@@ -53,9 +58,11 @@ void conn(int sockFD)
         // bzero(tempBuffer, sizeof(tempBuffer));
         readBytes = read(sockFD, readBuffer, sizeof(readBuffer));
         // if(readBytes==0)break;
-		printf("read bytes: %ld\n",readBytes);
+		// printf("read bytes: %ld\n",readBytes);
 		// printf("rbuf: %s\n",readBuffer);
-        if (readBytes == -1)
+        if(strcmp(readBuffer, "Invalid Choice!\n")==0)break;
+
+        else if (readBytes == -1)
             perror("Error while reading from client socket!");
         else if (readBytes == 0)
             printf("No error received from server! Closing the connection to the server now!\n");
